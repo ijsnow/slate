@@ -17,6 +17,10 @@ impl Default for Affinity {
 pub struct Path(Vec<usize>);
 
 impl Path {
+    pub fn new(inner: Vec<usize>) -> Self {
+        Self(inner)
+    }
+
     /// Get a list of ancestor paths for a given path.
     fn ancestors(path: &Path, reverse: bool) -> Vec<Path> {
         let mut paths = Path::levels(path, reverse);
@@ -66,7 +70,7 @@ impl Path {
 
     fn ends_before(&self, Path(b): &Path) -> bool {
         let i = self.0.len() - 1;
-        if i > b.len() {
+        if i >= b.len() {
             return false;
         }
         let a_s = &self.0[0..i];

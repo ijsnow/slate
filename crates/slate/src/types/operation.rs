@@ -1,8 +1,11 @@
 use super::path::Path;
 
+#[derive(Debug, PartialEq)]
 pub struct Node;
+#[derive(Debug, PartialEq)]
 pub struct Range;
 
+#[derive(Debug, PartialEq)]
 pub enum Operation {
     InsertNode {
         node: Node,
@@ -154,5 +157,131 @@ impl Operation {
                 properties,
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::path::Path;
+    use super::*;
+
+    #[test]
+    fn inverse_move_node_backward_in_parent() {
+        let op = Operation::MoveNode {
+            path: Path::new(vec![0, 2]),
+            new_path: Path::new(vec![0, 1]),
+        };
+        assert_eq!(
+            op.inverse(),
+            Operation::MoveNode {
+                path: Path::new(vec![0, 1]),
+                new_path: Path::new(vec![0, 2]),
+            }
+        );
+    }
+
+    #[test]
+    fn inverse_move_node_child_to_ends_after_parent() {
+        let op = Operation::MoveNode {
+            path: Path::new(vec![0, 2, 1]),
+            new_path: Path::new(vec![0, 3]),
+        };
+        assert_eq!(
+            op.inverse(),
+            Operation::MoveNode {
+                path: Path::new(vec![0, 3]),
+                new_path: Path::new(vec![0, 2, 1]),
+            }
+        );
+    }
+
+    #[test]
+    fn inverse_move_node_child_to_ends_before_parent() {
+        let op = Operation::MoveNode {
+            path: Path::new(vec![0, 2, 1]),
+            new_path: Path::new(vec![0, 1]),
+        };
+        assert_eq!(
+            op.inverse(),
+            Operation::MoveNode {
+                path: Path::new(vec![0, 1]),
+                new_path: Path::new(vec![0, 3, 1]),
+            }
+        );
+    }
+
+    #[test]
+    fn inverse_move_node_child_to_parent() {
+        let op = Operation::MoveNode {
+            path: Path::new(vec![0, 2, 1]),
+            new_path: Path::new(vec![0, 2]),
+        };
+        assert_eq!(
+            op.inverse(),
+            Operation::MoveNode {
+                path: Path::new(vec![0, 2]),
+                new_path: Path::new(vec![0, 3, 1]),
+            }
+        );
+    }
+
+    #[test]
+    fn inverse_move_node_ends_after_parent_to_child() {
+        let op = Operation::MoveNode {
+            path: Path::new(vec![0, 3]),
+            new_path: Path::new(vec![0, 2, 1]),
+        };
+        assert_eq!(
+            op.inverse(),
+            Operation::MoveNode {
+                path: Path::new(vec![0, 2, 1]),
+                new_path: Path::new(vec![0, 3]),
+            }
+        );
+    }
+
+    #[test]
+    fn inverse_move_node_ends_before_parent_to_child() {
+        let op = Operation::MoveNode {
+            path: Path::new(vec![0, 1]),
+            new_path: Path::new(vec![0, 2, 1]),
+        };
+        assert_eq!(
+            op.inverse(),
+            Operation::MoveNode {
+                path: Path::new(vec![0, 1, 1]),
+                new_path: Path::new(vec![0, 1]),
+            }
+        );
+    }
+
+    #[test]
+    fn inverse_move_node_forward_in_parent() {
+        let op = Operation::MoveNode {
+            path: Path::new(vec![0, 1]),
+            new_path: Path::new(vec![0, 2]),
+        };
+        assert_eq!(
+            op.inverse(),
+            Operation::MoveNode {
+                path: Path::new(vec![0, 2]),
+                new_path: Path::new(vec![0, 1]),
+            }
+        );
+    }
+
+    #[test]
+    fn inverse_move_node_non_sibling() {
+        let op = Operation::MoveNode {
+            path: Path::new(vec![0, 2]),
+            new_path: Path::new(vec![1, 0, 0]),
+        };
+        assert_eq!(
+            op.inverse(),
+            Operation::MoveNode {
+                path: Path::new(vec![1, 0, 0]),
+                new_path: Path::new(vec![0, 2]),
+            }
+        );
     }
 }
