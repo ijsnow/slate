@@ -5,6 +5,7 @@ use super::operation::Operation;
 pub enum Affinity {
     Forward,
     Backward,
+    None,
 }
 
 impl Default for Affinity {
@@ -13,8 +14,14 @@ impl Default for Affinity {
     }
 }
 
-#[derive(Debug, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Path(Vec<usize>);
+
+impl Into<Path> for Vec<usize> {
+    fn into(self) -> Path {
+        Path(self)
+    }
+}
 
 impl Path {
     pub fn new(inner: Vec<usize>) -> Self {
@@ -88,7 +95,7 @@ impl Path {
         self > other
     }
 
-    fn is_ancestor(&self, b: &Path) -> bool {
+    pub fn is_ancestor(&self, b: &Path) -> bool {
         self.0.len() < b.0.len() && self.cmp(&b) == Ordering::Equal
     }
 
@@ -180,7 +187,7 @@ impl Path {
         Some(Path(path[ancestor.len()..].into()))
     }
 
-    pub fn transform(path: Path, operation: Operation, affinity: Affinity) -> Option<Path> {
+    pub fn transform(path: &Path, operation: &Operation, affinity: Affinity) -> Option<Path> {
         let mut path = path.clone();
 
         // PERF: Exit early if the operation is guaranteed not to have an effect.
@@ -190,12 +197,12 @@ impl Path {
 
         match operation {
             Operation::InsertNode { path: op, .. } => {
-                if op == path || op.ends_before(&path) || op.is_ancestor(&path) {
+                if op == &path || op.ends_before(&path) || op.is_ancestor(&path) {
                     path.0[op.0.len() - 1] += 1;
                 }
             }
             Operation::RemoveNode { path: op, .. } => {
-                if op == path || op.is_ancestor(&path) {
+                if op == &path || op.is_ancestor(&path) {
                     return None;
                 } else if op.ends_before(&path) {
                     path.0[op.0.len() - 1] -= 1
@@ -204,7 +211,7 @@ impl Path {
             Operation::MergeNode {
                 path: op, position, ..
             } => {
-                if op == path || op.ends_before(&path) {
+                if op == &path || op.ends_before(&path) {
                     path.0[op.0.len() - 1] -= 1;
                 } else if op.is_ancestor(&path) {
                     path.0[op.0.len() - 1] -= 1;
@@ -214,7 +221,7 @@ impl Path {
             Operation::SplitNode {
                 path: op, position, ..
             } => {
-                if op == path {
+                if op == &path {
                     if matches!(affinity, Affinity::Forward) {
                         let i = path.0.len() - 1;
                         path.0[i] += 1;
@@ -225,21 +232,22 @@ impl Path {
                     }
                 } else if op.ends_before(&path) {
                     path.0[op.0.len() - 1] += 1;
-                } else if op.is_ancestor(&path) && path.0[op.0.len()] >= position {
+                } else if op.is_ancestor(&path) && &path.0[op.0.len()] >= position {
                     path.0[op.0.len() - 1] += 1;
                     path.0[op.0.len()] -= position;
                 }
             }
             Operation::MoveNode {
                 path: op,
-                new_path: mut onp,
+                new_path: onp,
             } => {
+                let mut onp = onp.clone();
                 // If the old and new path are the same, it's a no-op.
-                if op == onp {
+                if op == &onp {
                     return Some(path);
                 }
 
-                if op.is_ancestor(&path) || op == path {
+                if op.is_ancestor(&path) || op == &path {
                     if op.ends_before(&onp) && op.0.len() < onp.0.len() {
                         onp.0[op.0.len() - 1] -= 1;
                     }
@@ -292,20 +300,6 @@ impl Ord for Path {
 impl PartialOrd for Path {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
-    }
-}
-
-impl PartialEq for Path {
-    fn eq(&self, other: &Self) -> bool {
-        if self.0.len() != other.0.len() {
-            return false;
-        }
-        for i in 0..self.0.len() {
-            if self.0[i] != other.0[i] {
-                return false;
-            }
-        }
-        true
     }
 }
 
@@ -992,7 +986,7 @@ mod tests {
             new_path: Path(vec![3]),
         };
         assert_eq!(
-            Path::transform(path, op, Default::default()).unwrap(),
+            Path::transform(&path, &op, Default::default()).unwrap(),
             Path(vec![4, 3, 3])
         );
     }
@@ -1005,7 +999,7 @@ mod tests {
             new_path: Path(vec![2]),
         };
         assert_eq!(
-            Path::transform(path, op, Default::default()).unwrap(),
+            Path::transform(&path, &op, Default::default()).unwrap(),
             Path(vec![4, 3, 3])
         );
     }
@@ -1018,7 +1012,7 @@ mod tests {
             new_path: Path(vec![3]),
         };
         assert_eq!(
-            Path::transform(path, op, Default::default()).unwrap(),
+            Path::transform(&path, &op, Default::default()).unwrap(),
             Path(vec![2, 3, 3])
         );
     }
@@ -1031,7 +1025,7 @@ mod tests {
             new_path: Path(vec![4]),
         };
         assert_eq!(
-            Path::transform(path, op, Default::default()).unwrap(),
+            Path::transform(&path, &op, Default::default()).unwrap(),
             Path(vec![2, 3, 3])
         );
     }
@@ -1044,7 +1038,7 @@ mod tests {
             new_path: Path(vec![5, 1]),
         };
         assert_eq!(
-            Path::transform(path, op, Default::default()).unwrap(),
+            Path::transform(&path, &op, Default::default()).unwrap(),
             Path(vec![4, 1, 3, 3])
         );
     }
@@ -1057,7 +1051,7 @@ mod tests {
             new_path: Path(vec![2, 5]),
         };
         assert_eq!(
-            Path::transform(path, op, Default::default()).unwrap(),
+            Path::transform(&path, &op, Default::default()).unwrap(),
             Path(vec![2, 5, 3, 3])
         );
     }
@@ -1070,7 +1064,7 @@ mod tests {
             new_path: Path(vec![3, 0, 0]),
         };
         assert_eq!(
-            Path::transform(path, op, Default::default()).unwrap(),
+            Path::transform(&path, &op, Default::default()).unwrap(),
             Path(vec![3, 3, 3])
         );
     }
@@ -1083,7 +1077,7 @@ mod tests {
             new_path: Path(vec![3, 0, 0]),
         };
         assert_eq!(
-            Path::transform(path, op, Default::default()).unwrap(),
+            Path::transform(&path, &op, Default::default()).unwrap(),
             Path(vec![3, 2, 3])
         );
     }
@@ -1096,7 +1090,7 @@ mod tests {
             new_path: Path(vec![3, 5, 0]),
         };
         assert_eq!(
-            Path::transform(path, op, Default::default()).unwrap(),
+            Path::transform(&path, &op, Default::default()).unwrap(),
             Path(vec![3, 4, 0])
         );
     }
@@ -1109,7 +1103,7 @@ mod tests {
             new_path: Path(vec![3, 1, 0]),
         };
         assert_eq!(
-            Path::transform(path, op, Default::default()).unwrap(),
+            Path::transform(&path, &op, Default::default()).unwrap(),
             Path(vec![3, 1, 0])
         );
     }
@@ -1122,7 +1116,7 @@ mod tests {
             new_path: Path(vec![3, 4]),
         };
         assert_eq!(
-            Path::transform(path, op, Default::default()).unwrap(),
+            Path::transform(&path, &op, Default::default()).unwrap(),
             Path(vec![3, 3, 3])
         );
     }
@@ -1135,7 +1129,7 @@ mod tests {
             new_path: Path(vec![3, 2]),
         };
         assert_eq!(
-            Path::transform(path, op, Default::default()).unwrap(),
+            Path::transform(&path, &op, Default::default()).unwrap(),
             Path(vec![3, 4, 3])
         );
     }
@@ -1148,7 +1142,7 @@ mod tests {
             new_path: Path(vec![5, 1]),
         };
         assert_eq!(
-            Path::transform(path, op, Default::default()).unwrap(),
+            Path::transform(&path, &op, Default::default()).unwrap(),
             Path(vec![5, 1, 3])
         );
     }
@@ -1161,7 +1155,7 @@ mod tests {
             new_path: Path(vec![2, 1]),
         };
         assert_eq!(
-            Path::transform(path, op, Default::default()).unwrap(),
+            Path::transform(&path, &op, Default::default()).unwrap(),
             Path(vec![2, 1, 3])
         );
     }
@@ -1174,7 +1168,7 @@ mod tests {
             new_path: Path(vec![0, 1]),
         };
         assert_eq!(
-            Path::transform(path, op, Default::default()).unwrap(),
+            Path::transform(&path, &op, Default::default()).unwrap(),
             Path(vec![0, 2])
         );
     }
@@ -1187,7 +1181,7 @@ mod tests {
             new_path: Path(vec![0, 0]),
         };
         assert_eq!(
-            Path::transform(path, op, Default::default()).unwrap(),
+            Path::transform(&path, &op, Default::default()).unwrap(),
             Path(vec![0, 2])
         );
     }
@@ -1200,7 +1194,7 @@ mod tests {
             new_path: Path(vec![0, 1]),
         };
         assert_eq!(
-            Path::transform(path, op, Default::default()).unwrap(),
+            Path::transform(&path, &op, Default::default()).unwrap(),
             Path(vec![0, 0])
         );
     }
@@ -1213,7 +1207,7 @@ mod tests {
             new_path: Path(vec![0, 3]),
         };
         assert_eq!(
-            Path::transform(path, op, Default::default()).unwrap(),
+            Path::transform(&path, &op, Default::default()).unwrap(),
             Path(vec![0, 0])
         );
     }

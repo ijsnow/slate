@@ -89,8 +89,8 @@ impl Operation {
                 // moves by looking at the impact of the move operation on the node
                 // after the original move path.
                 let inverse_path = Path::transform(
-                    path.clone(),
-                    Operation::MoveNode {
+                    &path,
+                    &Operation::MoveNode {
                         path: path.clone(),
                         new_path: new_path.clone(),
                     },
@@ -98,8 +98,8 @@ impl Operation {
                 )
                 .unwrap();
                 let inverse_new_path = Path::transform(
-                    path.next().unwrap(),
-                    Operation::MoveNode { path, new_path },
+                    &path.next().unwrap(),
+                    &Operation::MoveNode { path, new_path },
                     Default::default(),
                 )
                 .unwrap();
