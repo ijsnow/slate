@@ -23,7 +23,11 @@ pub struct Range {
 }
 
 impl Range {
-    fn edges(&self, reverse: bool) -> (&Point, &Point) {
+    pub fn new(anchor: Point, focus: Point) -> Self {
+        Self { anchor, focus }
+    }
+
+    pub fn edges(&self, reverse: bool) -> (&Point, &Point) {
         if self.is_backward() == reverse {
             (&self.anchor, &self.focus)
         } else {
