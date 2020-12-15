@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use super::{Point, Range};
+use super::{node::Descendant, Range};
 
 pub type Decoration = (Range, HashSet<String>);
 
@@ -15,7 +15,17 @@ bitflags::bitflags! {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Text(String, Marks, HashSet<String>);
 
+impl Into<Descendant> for Text {
+    fn into(self) -> Descendant {
+        Descendant::Text(self)
+    }
+}
+
 impl Text {
+    pub fn new(text: impl Into<String>) -> Self {
+        Self(text.into(), Marks::empty(), HashSet::new())
+    }
+
     pub fn with_meta(text: impl Into<String>, meta: HashSet<String>) -> Self {
         Self(text.into(), Marks::empty(), meta)
     }
@@ -38,7 +48,7 @@ impl Text {
             let mut o = 0;
 
             for l in leaves.iter() {
-                let mut leaf = l.clone();
+                let leaf = l.clone();
                 let len = leaf.0.len();
                 let offset = o;
                 o += leaf.0.len();
@@ -66,15 +76,12 @@ impl Text {
                 let mut after: Option<Text> = None;
 
                 if end.offset < offset + len {
-                    println!("after {:?}", middle.2);
                     let off = end.offset - offset;
                     after = Some(Text(middle.0[off..].into(), middle.1, middle.2.clone()));
                     middle = Text(middle.0[..off].into(), middle.1, middle.2);
-                    println!("{:?} {:?}", after, middle);
                 }
 
                 if start.offset > offset {
-                    println!("before {:?}", middle.2);
                     let off = start.offset - offset;
                     before = Some(Text(middle.0[..off].into(), middle.1, middle.2.clone()));
                     middle = Text(middle.0[off..].into(), middle.1, middle.2);
@@ -102,6 +109,7 @@ impl Text {
 
 #[cfg(test)]
 mod tests {
+    use super::super::Point;
     use super::*;
 
     #[test]

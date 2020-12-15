@@ -1,11 +1,8 @@
+use super::node::Node;
 use super::path::Path;
+use super::range::Range;
 
-#[derive(Debug, PartialEq)]
-pub struct Node;
-#[derive(Debug, PartialEq)]
-pub struct Range;
-
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Operation {
     InsertNode {
         node: Node,

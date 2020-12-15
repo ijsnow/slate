@@ -16,7 +16,7 @@ impl Default for Affinity {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Range {
     anchor: Point,
     focus: Point,

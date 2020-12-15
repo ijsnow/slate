@@ -24,13 +24,29 @@ impl Into<Path> for Vec<usize> {
 }
 
 impl Path {
+    pub fn concat(&self, i: usize) -> Self {
+        let mut copy = self.clone();
+        copy.0.push(i);
+        copy
+    }
+}
+
+impl Path {
     pub fn new(inner: Vec<usize>) -> Self {
         Self(inner)
     }
 
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, i: usize) -> Option<usize> {
+        self.0.get(i).map(|p| *p)
+    }
+
     /// Get a list of ancestor paths for a given path.
-    fn ancestors(path: &Path, reverse: bool) -> Vec<Path> {
-        let mut paths = Path::levels(path, reverse);
+    pub fn ancestors(&self, reverse: bool) -> Vec<Path> {
+        let mut paths = self.levels(reverse);
 
         if reverse {
             paths = paths[1..].into();

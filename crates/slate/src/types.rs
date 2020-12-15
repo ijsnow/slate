@@ -1,4 +1,7 @@
+mod editor;
+mod element;
 mod location;
+mod node;
 mod operation;
 mod path;
 mod point;
