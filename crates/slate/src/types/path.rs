@@ -14,7 +14,7 @@ impl Default for Affinity {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Path(Vec<usize>);
 
 impl Into<Path> for Vec<usize> {
@@ -58,13 +58,13 @@ impl Path {
     }
 
     /// Get the common ancestor path of two paths.
-    fn common(path: &Path, other: &Path) -> Path {
+    pub fn common(&self, other: &Path) -> Path {
         let mut common = vec![];
-        for i in 0..path.0.len() {
-            if path.0[i] != other.0[i] {
+        for i in 0..self.0.len() {
+            if self.0[i] != other.0[i] {
                 break;
             }
-            common.push(path.0[i]);
+            common.push(self.0[i]);
         }
         Path(common)
     }
@@ -107,7 +107,7 @@ impl Path {
         self.0[self.0.len() - 1] > 0
     }
 
-    fn is_after(&self, other: &Path) -> bool {
+    pub fn is_after(&self, other: &Path) -> bool {
         self > other
     }
 
@@ -115,7 +115,7 @@ impl Path {
         self.0.len() < b.0.len() && self.cmp(&b) == Ordering::Equal
     }
 
-    fn is_before(&self, b: &Path) -> bool {
+    pub fn is_before(&self, b: &Path) -> bool {
         self < b
     }
 
@@ -171,7 +171,7 @@ impl Path {
         Some(Path(n))
     }
 
-    fn parent(&self) -> Option<Path> {
+    pub fn parent(&self) -> Option<Path> {
         if self.0.len() == 0 {
             return None;
         }

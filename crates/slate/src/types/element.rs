@@ -29,6 +29,14 @@ impl Element {
     pub fn children(&self) -> Vec<Descendant> {
         self.children.clone()
     }
+
+    pub fn has_children(&self) -> bool {
+        self.children.len() > 0
+    }
+
+    pub fn num_children(&self) -> usize {
+        self.children.len()
+    }
 }
 
 /// `ElementEntry` objects refer to an `Element` and the `Path` where it can be

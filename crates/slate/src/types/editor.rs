@@ -35,4 +35,12 @@ impl Editor {
     pub fn children(&self) -> Vec<Descendant> {
         self.children.clone()
     }
+
+    pub fn has_children(&self) -> bool {
+        self.children.len() > 0
+    }
+
+    pub fn num_children(&self) -> usize {
+        self.children.len()
+    }
 }
