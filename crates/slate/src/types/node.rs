@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use super::{editor::Editor, element::Element, path::Path, text::Text};
+use super::{editor::Editor, element::Element, path::Path, range::Range, text::Text};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Descendant {
@@ -217,6 +217,32 @@ impl Node {
             visited: HashSet::new(),
         }
     }
+
+    fn nodes_span(&self, from: Path, to: Path) -> NodeIterator {
+        NodeIterator {
+            root: self.clone(),
+            n: Box::new(self.clone()),
+            p: Path::new(vec![]),
+            from: from,
+            to: Some(to),
+            reverse: false,
+            pass: None,
+            visited: HashSet::new(),
+        }
+    }
+
+    fn nodes_with_filter(&self, pass: fn(NodeEntry) -> bool) -> NodeIterator {
+        NodeIterator {
+            root: self.clone(),
+            n: Box::new(self.clone()),
+            p: Path::new(vec![]),
+            from: Path::new(vec![]),
+            to: None,
+            reverse: false,
+            pass: Some(pass),
+            visited: HashSet::new(),
+        }
+    }
 }
 
 /// `NodeEntry` objects are returned when iterating over the nodes in a Slate
@@ -252,16 +278,17 @@ impl Iterator for NodeIterator {
             out = Some((self.n.clone(), self.p.clone()));
         }
 
-        let pass = self
-            .pass
-            .map(|f| f((self.n.clone(), self.p.clone())))
-            .unwrap_or(false);
+        let n = self.n.clone();
+        let p = self.p.clone();
+
+        let pass = self.pass.unwrap_or(|_| false);
+        let passed = pass((n, p));
 
         // If we're allowed to go downward and we haven't decsended yet, do.
         if !self.visited.contains(&self.p)
             && !matches!(self.n.as_ref(), &Node::Text(_))
             && self.n.has_children()
-            && (self.pass.is_none() || pass)
+            && !passed
         {
             self.visited.insert(self.p.clone());
 
@@ -297,12 +324,12 @@ impl Iterator for NodeIterator {
                 self.p = new_path;
                 self.n = self.root.get(&self.p).unwrap();
                 println!("3 {:?}", out);
-                return out;
+                return out.or_else(|| self.next());
             }
         }
 
         // If we're going backward...
-        if self.reverse && self.p.get(self.p.len() - 6) != Some(0) {
+        if self.reverse && self.p.get(self.p.len() - 1) != Some(0) {
             let new_path = self.p.previous().unwrap();
             self.p = new_path;
             self.n = self.root.get(&self.p).unwrap();
@@ -314,8 +341,13 @@ impl Iterator for NodeIterator {
         self.n = self.root.get(&self.p).unwrap();
         self.visited.insert(self.p.clone());
 
-        println!("5");
-        out
+        println!("5 {:?}", out);
+
+        if passed {
+            self.next()
+        } else {
+            out
+        }
     }
 }
 
@@ -455,5 +487,68 @@ mod tests {
             (Box::new(Node::Text(t2)), Path::new(vec![1, 0])),
         ];
         assert_eq!(input.nodes().collect::<Vec<_>>(), want);
+    }
+
+    #[test]
+    fn nodes_nested_elements() {
+        let t = Text::new("a");
+        let elem11 = Element::new().add_child(t.clone());
+        let elem1 = Element::new().add_child(elem11.clone());
+        let editor = Editor::new().add_child(elem1.clone());
+        let input = Node::Editor(editor.clone());
+        let want = vec![
+            (Box::new(Node::Editor(editor)), Path::new(vec![])),
+            (Box::new(Node::Element(elem1)), Path::new(vec![0])),
+            (Box::new(Node::Element(elem11)), Path::new(vec![0, 0])),
+            (Box::new(Node::Text(t)), Path::new(vec![0, 0, 0])),
+        ];
+        assert_eq!(input.nodes().collect::<Vec<_>>(), want);
+    }
+
+    #[test]
+    fn nodes_pass() {
+        let t = Text::new("a");
+        let elem11 = Element::new().add_child(t.clone());
+        let elem1 = Element::new().add_child(elem11.clone());
+        let editor = Editor::new().add_child(elem1.clone());
+        let input = Node::Editor(editor.clone());
+        let want = vec![
+            (Box::new(Node::Editor(editor)), Path::new(vec![])),
+            (Box::new(Node::Element(elem1)), Path::new(vec![0])),
+            (Box::new(Node::Element(elem11)), Path::new(vec![0, 0])),
+        ];
+        assert_eq!(
+            input
+                .nodes_with_filter(|(_, p)| p.len() > 2)
+                .collect::<Vec<_>>(),
+            want
+        );
+    }
+
+    #[test]
+    fn nodes_to() {
+        let t1 = Text::new("a");
+        let t2 = Text::new("b");
+        let t3 = Text::new("c");
+        let t4 = Text::new("d");
+        let elem1 = Element::new()
+            .add_child(t1.clone())
+            .add_child(t2.clone())
+            .add_child(t3.clone())
+            .add_child(t4.clone());
+        let editor = Editor::new().add_child(elem1.clone());
+        let input = Node::Editor(editor.clone());
+        let want = vec![
+            (Box::new(Node::Editor(editor)), Path::new(vec![])),
+            (Box::new(Node::Element(elem1)), Path::new(vec![0])),
+            (Box::new(Node::Text(t2)), Path::new(vec![0, 1])),
+            (Box::new(Node::Text(t3)), Path::new(vec![0, 2])),
+        ];
+        assert_eq!(
+            input
+                .nodes_span(Path::new(vec![0, 1]), Path::new(vec![0, 2]))
+                .collect::<Vec<_>>(),
+            want
+        );
     }
 }
